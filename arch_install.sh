@@ -9,7 +9,7 @@ HOSTNAME=
 KEYBOARD=
 TIMEZONE=
 NVME_DRIVE=/dev/nvme0n1
-EFI_PART_SIZE=
+EFI_PART_SIZE=550M
 BTRFS_PART_SIZE=
 MOUNT_POINT=/mnt
 CRYPT_NAME=luks
@@ -28,9 +28,9 @@ if [[ "$answer" =~ [Yy][Ee][Ss] ]]; then
         set 1 esp on \
         mkpart primary btrfs 551MiB 51.55GB
 
-    mkfs.vfat -F32 -n EFI "$NVME_DRIVE"p1
-    cryptsetup luksFormat "$NVME_DRIVE"p2
-    cryptsetup open /dev/nvme0n1p2 $CRYPT_NAME
+    mkfs.vfat -F32 -n EFI "${NVME_DRIVE}p1"
+    cryptsetup luksFormat "${NVME_DRIVE}p2"
+    cryptsetup open "${NVME_DRIVE}p2" $CRYPT_NAME
     mkfs.btrfs -f -L ROOT /dev/mapper/$CRYPT_NAME
 else
     echo "Quitting script. Be sure to customize before running it again."
@@ -51,7 +51,7 @@ mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvol=@home /dev/m
 mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvol=@pkg /dev/mapper/$CRYPT_NAME $MOUNT_POINT/var/cache/pacman/pkg
 mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvol=@snapshots /dev/mapper/$CRYPT_NAME $MOUNT_POINT/.snapshots
 mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvolid=5 /dev/mapper/$CRYPT_NAME $MOUNT_POINT/btrfs
-mount /dev/nvme0n1p1 $MOUNT_POINT/boot;
+mount "${NVME_DRIVE}p1" $MOUNT_POINT/boot;
 
 if [[ $ENABLE_SWAPFILE == true && -d $MOUNT_POINT/@swap ]]; then
     btrfs filesystem mkswapfile --size 8g --uuid clear /mnt/btrfs/@swap/swapfile
@@ -115,7 +115,7 @@ title Arch Linux
 linux /vmlinuz-linux-lts
 initrd /$CPU_PACKAGE.img
 initrd /initramfs-linux-lts.img
-options rd.luks.name=$(blkid -s UUID -o value /dev/nvme0n1p2)=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r /btrfs/@swap/swapfile)
+options rd.luks.name=$(blkid -s UUID -o value "${NVME_DRIVE}p2")=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r /btrfs/@swap/swapfile)
 EOF
 
 arch-chroot $MOUNT_POINT mkdir /etc/pacman.d/hooks; tee /etc/pacman.d/hooks/95-systemd-boot.hook << EOF
