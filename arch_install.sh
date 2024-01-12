@@ -59,7 +59,7 @@ mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvolid=5 /dev/map
 mount "${NVME_DRIVE}p1" $MOUNT_POINT/boot;
 
 if [[ $ENABLE_SWAPFILE == true && -d $MOUNT_POINT/@swap ]]; then
-    btrfs filesystem mkswapfile --size 8g --uuid clear /mnt/btrfs/@swap/swapfile
+    btrfs filesystem mkswapfile --size "$(awk '/MemTotal/ {print $2}' /proc/meminfo)k" --uuid clear /mnt/btrfs/@swap/swapfile
     swapon /mnt/btrfs/@swap/swapfile
 else
     echo "Avoiding swapfile"
