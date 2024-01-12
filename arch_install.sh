@@ -26,7 +26,7 @@ print_msg() {
 create_partitions() {
     echo
     echo "Creating EFI partition of size $EFI_PART_SIZE and a an encrypted BTRFS partition of size $BTRFS_PART_SIZE"
-    read -p "This will erase data on $NVME_DRIVE! Is that okay? (y/N): " answer
+    read -p "This will erase data on $NVME_DRIVE! Is that okay? (yes/No): " answer
 
     if [[ "$answer" =~ [Yy][Ee][Ss] ]]; then
         parted -s "$NVME_DRIVE" mklabel gpt \
@@ -62,8 +62,8 @@ create_btrfs_subvolumes() {
     mount "${NVME_DRIVE}p1" $MOUNT_POINT/boot;
 
     if [[ $ENABLE_SWAPFILE == true && -d $MOUNT_POINT/@swap ]]; then
-        btrfs filesystem mkswapfile --size "$(awk '/MemTotal/ {print $2}' /proc/meminfo)k" --uuid clear /mnt/btrfs/@swap/swapfile
-        swapon /mnt/btrfs/@swap/swapfile
+        btrfs filesystem mkswapfile --size "$(awk '/MemTotal/ {print $2}' /proc/meminfo)k" --uuid clear $MOUNT_POINT/@swap/swapfile
+        swapon $MOUNT_POINT/@swap/swapfile
     else
         echo "Avoiding swapfile"
     fi
