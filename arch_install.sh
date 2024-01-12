@@ -162,18 +162,28 @@ EOF
 }
 
 arch_setup() {
-    arch-chroot $MOUNT_POINT useradd -m -G wheel -s /bin/zsh $CUSTOMUSER
+    arch-chroot $MOUNT_POINT useradd -m -G wheel -s /bin/zsh $CUSTOM_USER
 
-    read -s -p "Enter root password: "
-    passwd --stdin
+    read -s -p "Enter password for user root: " password
+    arch-chroot $MOUNT_POINT /bin/bash <<EOF
+    echo "root:$password" | chpasswd
+EOF
 
-    read -s -p "Enter $CUSTOMUSER password: "
-    passwd --stdin $CUSTOMUSER
+    read -s -p "Enter password for user $CUSTOM_USER: " password
+    arch-chroot $MOUNT_POINT /bin/bash <<EOF
+    echo "$CUSTOM_USER:$password" | chpasswd
+EOF
 
-    arch-chroot $MOUNT_POINT git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si
-    arch-chroot $MOUNT_POINT yay -S $INSTALL_PACKAGES
+    arch-chroot $MOUNT_POINT /bin/bash -c "
+        pacman -Syu --noconfirm && \
+        cd /tmp && \
+        sudo -u $CUSTOM_USER git clone https://aur.archlinux.org/yay-bin.git && \
+        cd /tmp/yay-bin && \
+        sudo -u $CUSTOM_USER makepkg -si --noconfirm
+    "
+    arch-chroot $MOUNT_POINT yay -S "$INSTALL_PACKAGES"
     arch-chroot $MOUNT_POINT pikaur -Rcns wpa_supplicant yay
-    arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOMUSER/.zshrc
+    arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc
     arch-chroot $MOUNT_POINT systemctl enable sddm.service NetworkManager.service fstrim.timer
 }
 
