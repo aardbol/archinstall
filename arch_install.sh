@@ -9,14 +9,19 @@ HOSTNAME=
 KEYBOARD=
 TIMEZONE=
 NVME_DRIVE=/dev/nvme0n1
-EFI_PART_SIZE=550M
-BTRFS_PART_SIZE=
+EFI_PART_SIZE=550MiB
+BTRFS_PART_SIZE=50GiB
 MOUNT_POINT=/mnt
 CRYPT_NAME=luks
 ENABLE_SWAPFILE=true
 REFLECTOR_COUNTRIES=France,Germany
-INSTALL_PACKAGES=plasma plasma-wayland-session networkmanager-iwd nftables iptables-nft manjaro-zsh-config pikaur kate gwenview konsole kcalc okular firefox kdeconnect kamoso okular skanlite kleopatra partitionmanager dolphin ark zstd bluez bluez-utils bluedevil pipewire-pulse print-manager kwalletmanager kdialog filelight ffmpegthumbs kdegraphics-thumbnailers dosfstools exfat-utils xorg-xeyes keepassxc noto-fonts-emoji exa ttf-ubuntu-font-family man-db nvme-cli openbsd-netcat nmap bind p7zip whois usbutils ttf-roboto-mono pacman-contrib fuse2 xdg-desktop-portal rsync apparmor zoxide ncdu trash-cli ansible-core ansible-lint wireguard-tools ttf-jetbrains-mono jq terraform python-dnspython python-netaddr python-jmespath helm python-poetry podman buildah netavark aardvark-dns slirp4netns borgmatic signal-desktop
+INSTALL_PACKAGES="plasma plasma-wayland-session networkmanager-iwd nftables iptables-nft manjaro-zsh-config pikaur kate gwenview konsole kcalc okular firefox kdeconnect kamoso okular skanlite kleopatra partitionmanager dolphin ark zstd bluez bluez-utils bluedevil pipewire-pulse print-manager kwalletmanager kdialog filelight ffmpegthumbs kdegraphics-thumbnailers dosfstools exfat-utils xorg-xeyes keepassxc noto-fonts-emoji exa ttf-ubuntu-font-family man-db nvme-cli openbsd-netcat nmap bind p7zip whois usbutils ttf-roboto-mono pacman-contrib fuse2 xdg-desktop-portal rsync apparmor zoxide ncdu trash-cli ansible-core ansible-lint wireguard-tools ttf-jetbrains-mono jq terraform python-dnspython python-netaddr python-jmespath helm python-poetry podman buildah netavark aardvark-dns slirp4netns borgmatic signal-desktop"
 
+print_msg() {
+    echo
+    echo "$1"
+    echo
+}
 
 echo
 echo "Creating EFI partition of size $EFI_PART_SIZE and a an encrypted BTRFS partition of size $BTRFS_PART_SIZE"
@@ -24,9 +29,9 @@ read -p "This will erase data on $NVME_DRIVE! Is that okay? (yes/no): " answer
 
 if [[ "$answer" =~ [Yy][Ee][Ss] ]]; then
     parted -s "$NVME_DRIVE" mklabel gpt \
-        mkpart primary fat32 1MiB 551MiB \
+        mkpart primary fat32 1MiB $EFI_PART_SIZE \
         set 1 esp on \
-        mkpart primary btrfs 551MiB 51.55GB
+        mkpart primary btrfs $EFI_PART_SIZE $BTRFS_PART_SIZE
 
     mkfs.vfat -F32 -n EFI "${NVME_DRIVE}p1"
     cryptsetup luksFormat "${NVME_DRIVE}p2"
@@ -166,11 +171,3 @@ umount -a
 
 # Lock root
 arch-chroot $MOUNT_POINT passwd -l root
-
-
-
-print_msg() {
-    echo
-    echo "$1"
-    echo
-}
