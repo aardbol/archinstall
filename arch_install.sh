@@ -61,9 +61,9 @@ create_btrfs_subvolumes() {
     mount -o noatime,nodiratime,compress=zstd,space_cache=v2,ssd,subvolid=5 /dev/mapper/$CRYPT_NAME $MOUNT_POINT/btrfs
     mount "${NVME_DRIVE}p1" $MOUNT_POINT/boot;
 
-    if [[ $ENABLE_SWAPFILE == true && -d $MOUNT_POINT/@swap ]]; then
-        btrfs filesystem mkswapfile --size "$(awk '/MemTotal/ {print $2}' /proc/meminfo)k" --uuid clear $MOUNT_POINT/@swap/swapfile
-        swapon $MOUNT_POINT/@swap/swapfile
+    if [[ $ENABLE_SWAPFILE == true && -d $MOUNT_POINT/btrfs/@swap ]]; then
+        btrfs filesystem mkswapfile --size "$(awk '/MemTotal/ {print $2}' /proc/meminfo)k" --uuid clear $MOUNT_POINT/btrfs/@swap/swapfile
+        swapon $MOUNT_POINT/btrfs/@swap/swapfile
     else
         echo "Avoiding swapfile"
     fi
@@ -174,15 +174,12 @@ arch_setup() {
 
     arch-chroot $MOUNT_POINT /bin/bash <<EOF
       pacman -Syu && \
-      sudo -u $CUSTOM_USER /bin/bash -c '
-        cd /tmp && \
-        git clone https://aur.archlinux.org/yay-bin.git && \
-        cd /tmp/yay-bin && \
-        makepkg -si && \
-        yay -Syu && \
-        yay -S $INSTALL_PACKAGES && \
-        yay -Rcns wpa_supplicant yay
-      '
+      cd /tmp && \
+      sudo -u $CUSTOM_USER git clone https://aur.archlinux.org/yay-bin.git && \
+      cd /tmp/yay-bin && \
+      makepkg -si && \
+      sudo -u $CUSTOM_USER yay -Syu && \
+      sudo -u $CUSTOM_USER yay -S $INSTALL_PACKAGES
 EOF
 
     arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc
