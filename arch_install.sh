@@ -15,7 +15,8 @@ MOUNT_POINT=/mnt
 CRYPT_NAME=luks
 ENABLE_SWAPFILE=true
 REFLECTOR_COUNTRIES=France,Germany
-INSTALL_PACKAGES="plasma plasma-wayland-session networkmanager-iwd nftables iptables-nft manjaro-zsh-config pikaur kate gwenview konsole kcalc okular firefox kdeconnect kamoso okular skanlite kleopatra partitionmanager dolphin ark zstd bluez bluez-utils bluedevil pipewire-pulse print-manager kwalletmanager kdialog filelight ffmpegthumbs kdegraphics-thumbnailers dosfstools exfat-utils xorg-xeyes keepassxc noto-fonts-emoji exa ttf-ubuntu-font-family man-db nvme-cli openbsd-netcat nmap bind p7zip whois usbutils ttf-roboto-mono pacman-contrib fuse2 xdg-desktop-portal rsync apparmor zoxide ncdu trash-cli ansible-core ansible-lint wireguard-tools ttf-jetbrains-mono jq terraform python-dnspython python-netaddr python-jmespath helm python-poetry podman buildah netavark aardvark-dns slirp4netns borgmatic signal-desktop"
+# networkmanager-iwd if you want a pure iwd solution
+INSTALL_PACKAGES="plasma plasma-wayland-session nftables iptables-nft manjaro-zsh-config kate gwenview konsole kcalc okular firefox kdeconnect kamoso okular skanlite kleopatra partitionmanager dolphin ark zstd bluez bluez-utils bluedevil pipewire-pulse print-manager kwalletmanager kdialog filelight ffmpegthumbs kdegraphics-thumbnailers dosfstools exfat-utils xorg-xeyes keepassxc noto-fonts-emoji exa ttf-ubuntu-font-family man-db nvme-cli openbsd-netcat nmap bind p7zip whois usbutils ttf-roboto-mono pacman-contrib fuse2 xdg-desktop-portal rsync apparmor zoxide ncdu trash-cli ansible-core ansible-lint wireguard-tools ttf-jetbrains-mono jq terraform python-dnspython python-netaddr python-jmespath helm python-poetry podman buildah netavark aardvark-dns slirp4netns borgmatic signal-desktop"
 
 print_msg() {
     echo
@@ -149,7 +150,7 @@ console-mode max
 editor   no
 EOF
 
-    arch-chroot $MOUNT_POINT pacman -S --needed sudo which zsh zsh-completions base-devel git reflector python-pip
+    arch-chroot $MOUNT_POINT pacman -S --needed --noconfirm sudo which zsh zsh-completions base-devel git reflector python-pip
     arch-chroot $MOUNT_POINT sed -i "s/^# --country $REFLECTOR_COUNTRIES/--country $REFLECTOR_COUNTRIES/" /etc/xdg/reflector/reflector.conf
     arch-chroot $MOUNT_POINT sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf
     arch-chroot $MOUNT_POINT systemctl enable reflector.timer systemd-timesyncd.service
@@ -174,15 +175,17 @@ arch_setup() {
 
     arch-chroot $MOUNT_POINT /bin/bash <<EOF
       pacman -Syu && \
-      cd /tmp && \
-      sudo -u $CUSTOM_USER git clone https://aur.archlinux.org/yay-bin.git && \
-      cd /tmp/yay-bin && \
-      makepkg -si && \
-      sudo -u $CUSTOM_USER yay -Syu && \
-      sudo -u $CUSTOM_USER yay -S $INSTALL_PACKAGES
+      sudo -u $CUSTOM_USER bash -c '
+        cd /tmp && \
+        git clone https://aur.archlinux.org/yay-bin.git && \
+        cd /tmp/yay-bin && \
+        makepkg -si && \
+        yay -Syu && \
+        yay -S $INSTALL_PACKAGES
+      '
 EOF
 
-    arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc
+    arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc && chown $CUSTOM_USER:$CUSTOM_USER /home/$CUSTOM_USER/.zshrc
     arch-chroot $MOUNT_POINT systemctl enable sddm.service NetworkManager.service fstrim.timer
 }
 
