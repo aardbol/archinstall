@@ -91,16 +91,16 @@ config_arch() {
     arch-chroot $MOUNT_POINT sed -i "s/#${LOCALE} UTF-8/${LOCALE} UTF-8/" /etc/locale.gen
     arch-chroot $MOUNT_POINT echo $HOSTNAME > /etc/hostname;
     arch-chroot $MOUNT_POINT tee /etc/locale.conf <<EOF
-    LANG=en_US.UTF-8
-    LC_ADDRESS=$LOCALE
-    LC_IDENTIFICATION=$LOCALE
-    LC_MEASUREMENT=$LOCALE
-    LC_MONETARY=$LOCALE
-    LC_NAME=$LOCALE
-    LC_NUMERIC=$LOCALE
-    LC_PAPER=$LOCALE
-    LC_TELEPHONE=$LOCALE
-    LC_TIME=$LOCALE
+LANG=en_US.UTF-8
+LC_ADDRESS=$LOCALE
+LC_IDENTIFICATION=$LOCALE
+LC_MEASUREMENT=$LOCALE
+LC_MONETARY=$LOCALE
+LC_NAME=$LOCALE
+LC_NUMERIC=$LOCALE
+LC_PAPER=$LOCALE
+LC_TELEPHONE=$LOCALE
+LC_TIME=$LOCALE
 EOF
     arch-chroot $MOUNT_POINT locale-gen
 
@@ -110,12 +110,12 @@ EOF
     arch-chroot $MOUNT_POINT hwclock --systohc
 
     arch-chroot $MOUNT_POINT tee /etc/hosts << EOF
-    #<ip-address>	<hostname.domain.org>	<hostname>
-    127.0.0.1   localhost	$(cat /etc/hostname)
-    127.0.1.1   pluto.localdomain   $(cat /etc/hostname)
-    ::1   localhost ip6-localhost   ip6-loopback
-    ff02::1   ip6-allnodes
-    ff02::2   ip6-allrouters
+#<ip-address>	<hostname.domain.org>	<hostname>
+127.0.0.1   localhost	$(cat /etc/hostname)
+127.0.1.1   pluto.localdomain   $(cat /etc/hostname)
+::1   localhost ip6-localhost   ip6-loopback
+ff02::1   ip6-allnodes
+ff02::2   ip6-allrouters
 EOF
 
     arch-chroot $MOUNT_POINT sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect modconf kms keyboard keymap block sd-encrypt btrfs filesystems resume)/' /etc/mkinitcpio.conf
@@ -123,41 +123,41 @@ EOF
 
     arch-chroot $MOUNT_POINT bootctl --path=/boot install
     arch-chroot $MOUNT_POINT tee /boot/loader/entries/arch.conf << EOF
-    title Arch Linux
-    linux /vmlinuz-linux-lts
-    initrd /$CPU_PACKAGE.img
-    initrd /initramfs-linux-lts.img
-    options rd.luks.name=$(blkid -s UUID -o value "${NVME_DRIVE}p2")=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r $MOUNT_POINT/btrfs/@swap/swapfile)
+title Arch Linux
+linux /vmlinuz-linux-lts
+initrd /$CPU_PACKAGE.img
+initrd /initramfs-linux-lts.img
+options rd.luks.name=$(blkid -s UUID -o value "${NVME_DRIVE}p2")=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r $MOUNT_POINT/btrfs/@swap/swapfile)
 EOF
 
     arch-chroot $MOUNT_POINT mkdir /etc/pacman.d/hooks; tee /etc/pacman.d/hooks/95-systemd-boot.hook << EOF
-    [Trigger]
-    Type = Package
-    Operation = Upgrade
-    Target = systemd
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = systemd
 
-    [Action]
-    Description = Gracefully upgrading systemd-boot...
-    When = PostTransaction
-    Exec = /usr/bin/systemctl restart systemd-boot-update.service
+[Action]
+Description = Gracefully upgrading systemd-boot...
+When = PostTransaction
+Exec = /usr/bin/systemctl restart systemd-boot-update.service
 EOF
 
     arch-chroot $MOUNT_POINT tee /boot/loader/loader.conf << EOF
-    default  arch.conf
-    timeout  0
-    console-mode max
-    editor   no
+default  arch.conf
+timeout  0
+console-mode max
+editor   no
 EOF
 
-    arch-chroot $MOUNT_POINT pacman -S --needed --noconfirm sudo which zsh zsh-completions base-devel git reflector python-pip
+    arch-chroot $MOUNT_POINT pacman -S --needed sudo which zsh zsh-completions base-devel git reflector python-pip
     arch-chroot $MOUNT_POINT sed -i "s/^# --country $REFLECTOR_COUNTRIES/--country $REFLECTOR_COUNTRIES/" /etc/xdg/reflector/reflector.conf
     arch-chroot $MOUNT_POINT sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf
     arch-chroot $MOUNT_POINT systemctl enable reflector.timer systemd-timesyncd.service
 
     arch-chroot $MOUNT_POINT tee -a /etc/sudoers << EOF
 
-    Defaults      editor=/usr/bin/rnano, !env_editor
-    %wheel      ALL=(ALL:ALL) ALL
+Defaults      editor=/usr/bin/rnano, !env_editor
+%wheel      ALL=(ALL:ALL) ALL
 EOF
 }
 
@@ -165,27 +165,26 @@ arch_setup() {
     arch-chroot $MOUNT_POINT useradd -m -G wheel -s /bin/zsh $CUSTOM_USER
 
     read -s -p "Enter password for user root: " password
-    arch-chroot $MOUNT_POINT /bin/bash <<EOF
-    echo "root:$password" | chpasswd
-EOF
+    arch-chroot $MOUNT_POINT /bin/bash -c "echo 'root:$password' | chpasswd"
+    echo
 
     read -s -p "Enter password for user $CUSTOM_USER: " password
+    arch-chroot $MOUNT_POINT /bin/bash -c "echo '$CUSTOM_USER:$password' | chpasswd"
+    echo
+
     arch-chroot $MOUNT_POINT /bin/bash <<EOF
-    echo "$CUSTOM_USER:$password" | chpasswd
+      pacman -Syu && \
+      sudo -u $CUSTOM_USER /bin/bash -c '
+        cd /tmp && \
+        git clone https://aur.archlinux.org/yay-bin.git && \
+        cd /tmp/yay-bin && \
+        makepkg -si && \
+        yay -Syu && \
+        yay -S $INSTALL_PACKAGES && \
+        yay -Rcns wpa_supplicant yay
+      '
 EOF
 
-    arch-chroot $MOUNT_POINT /bin/bash -c "
-        pacman -Syu --noconfirm && \
-        cd /tmp && \
-        sudo -u $CUSTOM_USER git clone https://aur.archlinux.org/yay-bin.git && \
-        cd /tmp/yay-bin && \
-        sudo -u $CUSTOM_USER makepkg -si --noconfirm
-    "
-    arch-chroot $MOUNT_POINT /bin/bash -c "
-        sudo -u $CUSTOM_USER yay -Syu --noconfirm && \
-        sudo -u $CUSTOM_USER yay -S $INSTALL_PACKAGES
-    "
-    arch-chroot $MOUNT_POINT sudo -u $CUSTOM_USER pikaur -Rcns wpa_supplicant yay
     arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc
     arch-chroot $MOUNT_POINT systemctl enable sddm.service NetworkManager.service fstrim.timer
 }
@@ -229,7 +228,7 @@ while [[ $# -gt 0 ]]; do
             generate_fstab
             config_arch
             arch_setup
-            print_msg "Be sure to still run it with the --finish flag"
+            print_msg "Be sure to still run it with the --finish flag after you confirm everything is OK"
             shift
             ;;
         *)
