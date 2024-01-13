@@ -127,7 +127,7 @@ EOF
     linux /vmlinuz-linux-lts
     initrd /$CPU_PACKAGE.img
     initrd /initramfs-linux-lts.img
-    options rd.luks.name=$(blkid -s UUID -o value "${NVME_DRIVE}p2")=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r /btrfs/@swap/swapfile)
+    options rd.luks.name=$(blkid -s UUID -o value "${NVME_DRIVE}p2")=luks root=/dev/mapper/luks rootflags=subvol=@ rd.luks.options=discard,no-read-workqueue,no-write-workqueue rw resume=/dev/mapper/luks resume_offset=$(btrfs inspect-internal map-swapfile -r $MOUNT_POINT/btrfs/@swap/swapfile)
 EOF
 
     arch-chroot $MOUNT_POINT mkdir /etc/pacman.d/hooks; tee /etc/pacman.d/hooks/95-systemd-boot.hook << EOF
@@ -181,8 +181,11 @@ EOF
         cd /tmp/yay-bin && \
         sudo -u $CUSTOM_USER makepkg -si --noconfirm
     "
-    arch-chroot $MOUNT_POINT yay -S "$INSTALL_PACKAGES"
-    arch-chroot $MOUNT_POINT pikaur -Rcns wpa_supplicant yay
+    arch-chroot $MOUNT_POINT /bin/bash -c "
+        sudo -u $CUSTOM_USER yay -Syu --noconfirm && \
+        sudo -u $CUSTOM_USER yay -S $INSTALL_PACKAGES
+    "
+    arch-chroot $MOUNT_POINT sudo -u $CUSTOM_USER pikaur -Rcns wpa_supplicant yay
     arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc
     arch-chroot $MOUNT_POINT systemctl enable sddm.service NetworkManager.service fstrim.timer
 }
