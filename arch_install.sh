@@ -24,6 +24,14 @@ print_msg() {
     echo
 }
 
+CPU_TYPE=$(grep -o -m 1 'vendor_id.*' /proc/cpuinfo | awk '{print $3}')
+
+if [ "$CPU_TYPE" == "GenuineIntel" ]; then
+    CPU_PACKAGE="intel-ucode"
+elif [ "$CPU_TYPE" == "AuthenticAMD" ]; then
+    CPU_PACKAGE="amd-ucode"
+fi
+
 create_partitions() {
     echo
     echo "Creating EFI partition of size $EFI_PART_SIZE and a an encrypted BTRFS partition of size $BTRFS_PART_SIZE"
@@ -71,14 +79,6 @@ create_btrfs_subvolumes() {
 }
 
 generate_fstab() {
-    CPU_TYPE=$(grep -o -m 1 'vendor_id.*' /proc/cpuinfo | awk '{print $3}')
-
-    if [ "$CPU_TYPE" == "GenuineIntel" ]; then
-        CPU_PACKAGE="intel-ucode"
-    elif [ "$CPU_TYPE" == "AuthenticAMD" ]; then
-        CPU_PACKAGE="amd-ucode"
-    fi
-
     pacstrap $MOUNT_POINT linux-lts linux-firmware base btrfs-progs $CPU_PACKAGE nano
     genfstab -U $MOUNT_POINT >> $MOUNT_POINT/etc/fstab
 
@@ -175,14 +175,13 @@ arch_setup() {
 
     arch-chroot $MOUNT_POINT /bin/bash <<EOF
       pacman -Syu && \
-      sudo -u $CUSTOM_USER bash -c '
-        cd /tmp && \
-        git clone https://aur.archlinux.org/yay-bin.git && \
-        cd /tmp/yay-bin && \
-        makepkg -si && \
-        yay -Syu && \
-        yay -S $INSTALL_PACKAGES
-      '
+      cd /tmp && \
+      git clone https://aur.archlinux.org/yay-bin.git && \
+      chown $CUSTOM_USER:$CUSTOM_USER /tmp/yay-bin && \
+      cd /tmp/yay-bin && \
+      sudo -u $CUSTOM_USER makepkg -si && \
+      yay -Syu && \
+      yay -S $INSTALL_PACKAGES
 EOF
 
     arch-chroot $MOUNT_POINT cat /etc/zsh/zshrc-manjaro/.zshrc > /home/$CUSTOM_USER/.zshrc && chown $CUSTOM_USER:$CUSTOM_USER /home/$CUSTOM_USER/.zshrc
